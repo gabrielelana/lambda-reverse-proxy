@@ -1,0 +1,12 @@
+services:
+  lambda:
+    build:
+      context: assets/
+    ports:
+      - "8080:8080"
+
+  proxy:
+    build:
+      context: .
+    depends_on:
+      - lambda
