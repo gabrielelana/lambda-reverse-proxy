@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServer(t *testing.T) {
+func TestPing(t *testing.T) {
 	srv := NewServer()
 	w := httptest.NewRecorder()
 
