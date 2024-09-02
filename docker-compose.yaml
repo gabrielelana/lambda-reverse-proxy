@@ -1,12 +1,29 @@
 services:
-  lambda:
+  lambda-1:
     build:
       context: assets/
+    environment:
+      FUNCTION_NAME: golden-goose
+
+  lambda-2:
+    build:
+      context: assets/
+    environment:
+      FUNCTION_NAME: green-falcon
 
   proxy:
     build:
       context: .
-    depends_on:
-      - lambda
+      dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
+    volumes:
+      - ./:/app
+    networks:
+      default:
+        aliases:
+          - foo.domain.lb # should proxy to lambda-1
+          - bar.domain.lb # sholud proxy to lambda-2
+    depends_on:
+      - lambda-1
+      - lambda-2
