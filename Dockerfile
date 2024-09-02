@@ -2,7 +2,7 @@ FROM golang:alpine AS builder
 
 RUN apk update && apk add --no-cache git
 
-WORKDIR $GOPATH/src/mypackage/myapp/
+WORKDIR /app
 COPY . .
 RUN go get
 RUN go build -o /go/bin/lrp
