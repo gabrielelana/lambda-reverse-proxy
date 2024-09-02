@@ -21,12 +21,69 @@ import (
 var ErrRouteNotFound = errors.New("Route not found")
 
 type Config struct {
-	Hosts []Host
+	Region string
+	Local  []ProxyToHost
+	AWS    []ProxyToLambda
 }
 
-type Host struct {
+type ProxyToLambda struct {
+	Hostname     string
+	FunctionName string
+}
+
+type ProxyToHost struct {
 	Hostname string
 	Endpoint string
+}
+
+type Destination interface {
+	Invoke(payload []byte) (*lambda.InvokeOutput, error)
+}
+
+type LocalDestination struct {
+	Endpoint string
+}
+
+type LambdaDestination struct {
+	FunctionName string
+	Region       string
+}
+
+func (d LocalDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) {
+	s, err := session.NewSession(&aws.Config{
+		Endpoint:    aws.String(d.Endpoint),
+		Region:      aws.String("eu-central-1"),
+		Credentials: credentials.AnonymousCredentials,
+	})
+	if err != nil {
+		return nil, err
+	}
+	l := lambda.New(s)
+	return l.Invoke(&lambda.InvokeInput{
+		// TODO: someting related to observability?
+		// ClientContext:  new(string),
+		FunctionName:   aws.String("function"),
+		InvocationType: aws.String(lambda.InvocationTypeRequestResponse),
+		Payload:        payload,
+	})
+}
+
+func (d LambdaDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) {
+	s, err := session.NewSession(&aws.Config{
+		Region:      aws.String(d.Region),
+		Credentials: credentials.NewEnvCredentials(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	l := lambda.New(s)
+	return l.Invoke(&lambda.InvokeInput{
+		// TODO: someting related to observability?
+		// ClientContext:  new(string),
+		FunctionName:   aws.String(d.FunctionName),
+		InvocationType: aws.String(lambda.InvocationTypeRequestResponse),
+		Payload:        payload,
+	})
 }
 
 func NewServer() http.Handler {
@@ -38,7 +95,8 @@ func NewServer() http.Handler {
 	})
 
 	config := Config{
-		Hosts: []Host{
+		Region: "eu-central-1",
+		Local: []ProxyToHost{
 			{Hostname: "foo.domain.lb", Endpoint: "http://lambda-1:8080"},
 			{Hostname: "bar.domain.lb", Endpoint: "http://lambda-2:8080"},
 		},
@@ -49,14 +107,20 @@ func NewServer() http.Handler {
 	return mux
 }
 
-func Route(config *Config, hostname string) (*session.Session, error) {
-	for _, host := range config.Hosts {
+func Route(config *Config, hostname string) (Destination, error) {
+	for _, host := range config.Local {
 		if host.Hostname == hostname {
-			return session.NewSession(&aws.Config{
-				Endpoint:    aws.String(host.Endpoint),
-				Region:      aws.String("eu-central-1"),
-				Credentials: credentials.AnonymousCredentials,
-			})
+			return LocalDestination{
+				Endpoint: host.Endpoint,
+			}, nil
+		}
+	}
+	for _, host := range config.AWS {
+		if host.Hostname == hostname {
+			return LambdaDestination{
+				FunctionName: host.FunctionName,
+				Region:       config.Region,
+			}, nil
 		}
 	}
 	return nil, fmt.Errorf("Cannot route hostname %s: %w", hostname, ErrRouteNotFound)
@@ -80,7 +144,7 @@ func Rie(config *Config) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s, err := Route(config, event.RequestContext.DomainName)
+		d, err := Route(config, event.RequestContext.DomainName)
 		if err != nil {
 			if errors.Is(err, ErrRouteNotFound) {
 				w.WriteHeader(http.StatusNotFound)
@@ -93,14 +157,7 @@ func Rie(config *Config) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		l := lambda.New(s)
-		o, err := l.Invoke(&lambda.InvokeInput{
-			// TODO: someting related to observability?
-			// ClientContext:  new(string),
-			FunctionName:   aws.String("function"),
-			InvocationType: aws.String(lambda.InvocationTypeRequestResponse),
-			Payload:        payload,
-		})
+		o, err := d.Invoke(payload)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Lambda invocation error: " + err.Error()))
