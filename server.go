@@ -22,7 +22,9 @@ import (
 var ErrRouteNotFound = errors.New("Route not found")
 
 type Config struct {
-	Region              string          `yaml:"region"`
+	Region              string          `yaml:"region" default:"eu-central-1"`
+	Host                string          `yaml:"host" default:"0.0.0.0"`
+	Port                string          `yaml:"port" default:"8080"`
 	InternalRoutePrefix string          `yaml:"internal_route_prefix"`
 	Local               []ProxyToHost   `yaml:"local"`
 	AWS                 []ProxyToLambda `yaml:"aws"`

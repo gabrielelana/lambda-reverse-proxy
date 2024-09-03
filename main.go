@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/creasty/defaults"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,10 +28,15 @@ func run(ctx context.Context) error {
 	}
 	configurationFile := os.Args[1]
 
-	config := Config{}
 	data, err := os.ReadFile(configurationFile)
 	if err != nil {
 		return fmt.Errorf("Unable to read configuration file %s: %w", "./lrp.yaml", err)
+	}
+
+	config := Config{}
+	err = defaults.Set(&config)
+	if err != nil {
+		return fmt.Errorf("Unable initialize configuration: %w", err)
 	}
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
@@ -40,8 +46,7 @@ func run(ctx context.Context) error {
 	srv := NewServer(config)
 
 	httpServer := &http.Server{
-		// TODO: make them configurable
-		Addr:    net.JoinHostPort("0.0.0.0", "8080"),
+		Addr:    net.JoinHostPort(config.Host, config.Port),
 		Handler: srv,
 	}
 	go func() {
