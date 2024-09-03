@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -41,6 +42,7 @@ type Destination interface {
 }
 
 type LocalDestination struct {
+	mu       *sync.Mutex
 	Endpoint string
 	Region   string
 }
@@ -51,6 +53,8 @@ type LambdaDestination struct {
 }
 
 func (d LocalDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	s, err := session.NewSession(&aws.Config{
 		Endpoint:    aws.String(d.Endpoint),
 		Region:      aws.String(d.Region),
@@ -95,23 +99,17 @@ func NewServer(config Config) http.Handler {
 		w.Write([]byte("pong"))
 	})
 
-	// config := Config{
-	//	Region: "eu-central-1",
-	//	Local: []ProxyToHost{
-	//		{Hostname: "foo.domain.lb", Endpoint: "http://lambda-1:8080"},
-	//		{Hostname: "bar.domain.lb", Endpoint: "http://lambda-2:8080"},
-	//	},
-	// }
-
-	mux.HandleFunc("/", Rie(&config))
+	var mu sync.Mutex
+	mux.HandleFunc("/", Rie(&config, &mu))
 
 	return mux
 }
 
-func Route(config *Config, hostname string) (Destination, error) {
+func Route(config *Config, hostname string, mu *sync.Mutex) (Destination, error) {
 	for _, host := range config.Local {
 		if host.Hostname == hostname {
 			return LocalDestination{
+				mu:       mu,
 				Endpoint: host.Endpoint,
 				Region:   config.Region,
 			}, nil
@@ -128,7 +126,7 @@ func Route(config *Config, hostname string) (Destination, error) {
 	return nil, fmt.Errorf("Cannot route hostname %s: %w", hostname, ErrRouteNotFound)
 }
 
-func Rie(config *Config) func(w http.ResponseWriter, r *http.Request) {
+func Rie(config *Config, mu *sync.Mutex) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		event, err := ToEvent(r)
 		if err != nil {
@@ -146,7 +144,7 @@ func Rie(config *Config) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		d, err := Route(config, event.RequestContext.DomainName)
+		d, err := Route(config, event.RequestContext.DomainName, mu)
 		if err != nil {
 			if errors.Is(err, ErrRouteNotFound) {
 				w.WriteHeader(http.StatusNotFound)
