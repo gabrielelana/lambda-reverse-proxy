@@ -1,0 +1,7 @@
+region: eu-central-1
+
+local:
+  - hostname: foo.domain.lb
+    endpoint: http://lambda-1:8080
+  - hostname: bar.domain.lb
+    endpoint: http://lambda-2:8080

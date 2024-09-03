@@ -27,3 +27,18 @@ services:
     depends_on:
       - lambda-1
       - lambda-2
+# proxy:
+#     image: lrp:latest
+#     ports:
+#       - "8080:8080"
+#     entrypoint: /go/bin/lrp /etc/lrp.yaml
+#     volumes:
+#       - ./lrp.yaml:/etc/lrp.yaml
+#     networks:
+#       default:
+#         aliases:
+#           - foo.domain.lb # should proxy to lambda-1
+#           - bar.domain.lb # sholud proxy to lambda-2
+#     depends_on:
+#       - lambda-1
+#       - lambda-2

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func run(ctx context.Context) error {
@@ -20,7 +22,22 @@ func run(ctx context.Context) error {
 		syscall.SIGQUIT)
 	defer cancel()
 
-	srv := NewServer()
+	if len(os.Args) < 2 {
+		return fmt.Errorf("Missing argument in command line\nusing: %s <CONFIGURATION_FILE>", os.Args[0])
+	}
+	configurationFile := os.Args[1]
+
+	config := Config{}
+	data, err := os.ReadFile(configurationFile)
+	if err != nil {
+		return fmt.Errorf("Unable to read configuration file %s: %w", "./lrp.yaml", err)
+	}
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return fmt.Errorf("Unable to decode configuration file: %w", err)
+	}
+
+	srv := NewServer(config)
 
 	httpServer := &http.Server{
 		// TODO: make them configurable

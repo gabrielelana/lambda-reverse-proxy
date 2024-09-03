@@ -21,19 +21,19 @@ import (
 var ErrRouteNotFound = errors.New("Route not found")
 
 type Config struct {
-	Region string
-	Local  []ProxyToHost
-	AWS    []ProxyToLambda
+	Region string          `yaml:"region"`
+	Local  []ProxyToHost   `yaml:"local"`
+	AWS    []ProxyToLambda `yaml:"aws"`
 }
 
 type ProxyToLambda struct {
-	Hostname     string
-	FunctionName string
+	Hostname     string `yaml:"hostname"`
+	FunctionName string `yaml:"function_name"`
 }
 
 type ProxyToHost struct {
-	Hostname string
-	Endpoint string
+	Hostname string `yaml:"hostname"`
+	Endpoint string `yaml:"endpoint"`
 }
 
 type Destination interface {
@@ -42,6 +42,7 @@ type Destination interface {
 
 type LocalDestination struct {
 	Endpoint string
+	Region   string
 }
 
 type LambdaDestination struct {
@@ -52,7 +53,7 @@ type LambdaDestination struct {
 func (d LocalDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) {
 	s, err := session.NewSession(&aws.Config{
 		Endpoint:    aws.String(d.Endpoint),
-		Region:      aws.String("eu-central-1"),
+		Region:      aws.String(d.Region),
 		Credentials: credentials.AnonymousCredentials,
 	})
 	if err != nil {
@@ -86,7 +87,7 @@ func (d LambdaDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) 
 	})
 }
 
-func NewServer() http.Handler {
+func NewServer(config Config) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
@@ -94,13 +95,13 @@ func NewServer() http.Handler {
 		w.Write([]byte("pong"))
 	})
 
-	config := Config{
-		Region: "eu-central-1",
-		Local: []ProxyToHost{
-			{Hostname: "foo.domain.lb", Endpoint: "http://lambda-1:8080"},
-			{Hostname: "bar.domain.lb", Endpoint: "http://lambda-2:8080"},
-		},
-	}
+	// config := Config{
+	//	Region: "eu-central-1",
+	//	Local: []ProxyToHost{
+	//		{Hostname: "foo.domain.lb", Endpoint: "http://lambda-1:8080"},
+	//		{Hostname: "bar.domain.lb", Endpoint: "http://lambda-2:8080"},
+	//	},
+	// }
 
 	mux.HandleFunc("/", Rie(&config))
 
@@ -112,6 +113,7 @@ func Route(config *Config, hostname string) (Destination, error) {
 		if host.Hostname == hostname {
 			return LocalDestination{
 				Endpoint: host.Endpoint,
+				Region:   config.Region,
 			}, nil
 		}
 	}
