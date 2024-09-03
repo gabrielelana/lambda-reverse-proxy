@@ -64,4 +64,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: gabrielelana/lambda-reverse-proxy:latest
+          tags: ${{ github.repository }}:latest
