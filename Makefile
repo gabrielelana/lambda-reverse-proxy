@@ -4,12 +4,14 @@ up:
 down:
 	@docker compose down --remove-orphans --volumes
 
-test-all: test-unit, test-local
+test: test-unit test-local
 
 test-unit:
-	go test ./...
+	@echo "=============== UNIT"
+	@go test ./...
 
 test-local:
+	@echo "=============== LOCAL"
 	@./test/local/run.sh
 
 test-aws:
