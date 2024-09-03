@@ -1,24 +1,23 @@
 services:
   lambda-1:
     build:
-      context: assets/
+      context: ../../assets/
     environment:
       FUNCTION_NAME: golden-goose
 
   lambda-2:
     build:
-      context: assets/
+      context: ../../assets/
     environment:
       FUNCTION_NAME: green-falcon
 
   proxy:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
+    image: lrp:latest
     ports:
-      - "8080:8080"
+      - "41414:8080"
+    entrypoint: /go/bin/lrp /etc/lrp.yaml
     volumes:
-      - ./:/app
+      - ./lrp.yaml:/etc/lrp.yaml
     networks:
       default:
         aliases:

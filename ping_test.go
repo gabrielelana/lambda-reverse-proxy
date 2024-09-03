@@ -9,7 +9,8 @@ import (
 )
 
 func TestPing(t *testing.T) {
-	srv := NewServer()
+	config := Config{}
+	srv := NewServer(config)
 	w := httptest.NewRecorder()
 
 	r := httptest.NewRequest(http.MethodGet, "/ping", nil)
