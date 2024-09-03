@@ -22,9 +22,10 @@ import (
 var ErrRouteNotFound = errors.New("Route not found")
 
 type Config struct {
-	Region string          `yaml:"region"`
-	Local  []ProxyToHost   `yaml:"local"`
-	AWS    []ProxyToLambda `yaml:"aws"`
+	Region              string          `yaml:"region"`
+	InternalRoutePrefix string          `yaml:"internal_route_prefix"`
+	Local               []ProxyToHost   `yaml:"local"`
+	AWS                 []ProxyToLambda `yaml:"aws"`
 }
 
 type ProxyToLambda struct {
@@ -94,10 +95,17 @@ func (d LambdaDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) 
 func NewServer(config Config) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("pong"))
-	})
+	prefix := ""
+	if len(config.InternalRoutePrefix) > 0 {
+		prefix = "/" + config.InternalRoutePrefix
+	}
+
+	mux.HandleFunc(
+		fmt.Sprintf("GET %s/ping", prefix),
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("pong"))
+		})
 
 	var mu sync.Mutex
 	mux.HandleFunc("/", Rie(&config, &mu))
