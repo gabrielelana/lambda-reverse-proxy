@@ -21,3 +21,6 @@ go.work.sum
 
 # Local end2end test results
 test/local/test_results.json
+
+# GitHub workflows
+!.github
