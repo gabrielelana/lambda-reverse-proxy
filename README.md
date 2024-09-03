@@ -37,8 +37,10 @@ This is a reverse proxy able to do the following things:
   reverse proxy multiple domain aliases, you can use lambdas as normal HTTP
   services.
 
-TLDR: with this reverse proxy you can use your lambdas via HTTP both locally and
-on AWS.
+TLDR: with this reverse proxy you can use to invoke lambdas via HTTP both
+locally and on AWS.
 
 
 ### How
+
+TODO
