@@ -25,6 +25,18 @@ jobs:
         run: go vet
       - name: Test unit
         run: make test-unit
+      # Build lambda image before running local e2e to exploit cache
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+      - name: Build and load Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: "./assets"
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Setup K6
+        uses: grafana/setup-k6-action@v1
       - name: Test e2e as local proxy
         run: make test-local
       # TODO
