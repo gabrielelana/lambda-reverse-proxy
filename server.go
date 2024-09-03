@@ -270,7 +270,7 @@ func ToEvent(r *http.Request) (*events.APIGatewayV2HTTPRequest, error) {
 	lambdaPayload := events.APIGatewayV2HTTPRequest{
 		Version:               "2.0",
 		RouteKey:              "$default",
-		RawPath:               r.URL.RawPath,
+		RawPath:               r.URL.Path,
 		RawQueryString:        r.URL.RawQuery,
 		Cookies:               cookies,
 		Headers:               headers,
