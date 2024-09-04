@@ -109,6 +109,13 @@ func NewServer(config Config) http.Handler {
 			w.Write([]byte("pong"))
 		})
 
+	mux.HandleFunc(
+		fmt.Sprintf("GET %s/healthz", prefix),
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(""))
+		})
+
 	var mu sync.Mutex
 	mux.HandleFunc("/", Rie(&config, &mu))
 
