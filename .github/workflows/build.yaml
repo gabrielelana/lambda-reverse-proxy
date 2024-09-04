@@ -75,3 +75,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ github.repository }}
+          short-description: |
+            HTTP reverse proxy for lambda functions. Use lambdas as if they were
+            HTTP services both locally and on AWS.
