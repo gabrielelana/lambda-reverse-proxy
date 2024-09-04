@@ -77,4 +77,4 @@ jobs:
           repository: ${{ github.repository }}
           short-description: |
             HTTP reverse proxy for lambda functions. Use lambdas as if they were
-            HTTP services both locally and on AWS.
+            HTTP services.
