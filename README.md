@@ -1,5 +1,8 @@
 ## Lambda Reverse Proxy
 
+HTTP reverse proxy for lambda functions. Use lambdas as if they were HTTP
+services both locally and on AWS.
+
 ### Why
 
 On AWS lambdas are easier to deploy and manage than containers if you don't have
