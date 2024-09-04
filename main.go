@@ -23,28 +23,27 @@ func run(ctx context.Context) error {
 		syscall.SIGQUIT)
 	defer cancel()
 
-	if len(os.Args) < 2 {
-		return fmt.Errorf("Missing argument in command line\nusing: %s <CONFIGURATION_FILE>", os.Args[0])
-	}
-	configurationFile := os.Args[1]
-
-	data, err := os.ReadFile(configurationFile)
-	if err != nil {
-		return fmt.Errorf("Unable to read configuration file %s: %w", "./lrp.yaml", err)
-	}
-
 	config := Config{}
-	err = defaults.Set(&config)
+	err := defaults.Set(&config)
 	if err != nil {
 		return fmt.Errorf("Unable initialize configuration: %w", err)
 	}
-	err = yaml.Unmarshal(data, &config)
-	if err != nil {
-		return fmt.Errorf("Unable to decode configuration file: %w", err)
+
+	if len(os.Args) >= 2 {
+		configurationFile := os.Args[1]
+
+		data, err := os.ReadFile(configurationFile)
+		if err != nil {
+			return fmt.Errorf("Unable to read configuration file %s: %w", "./lrp.yaml", err)
+		}
+
+		err = yaml.Unmarshal(data, &config)
+		if err != nil {
+			return fmt.Errorf("Unable to decode configuration file: %w", err)
+		}
 	}
 
 	srv := NewServer(config)
-
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(config.Host, config.Port),
 		Handler: srv,
