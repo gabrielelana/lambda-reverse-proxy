@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,8 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 )
-
-var ErrRouteNotFound = errors.New("Route not found")
 
 type Config struct {
 	Region              string          `yaml:"region" default:"eu-central-1"`
@@ -53,6 +50,28 @@ type LocalDestination struct {
 type LambdaDestination struct {
 	FunctionName string
 	Region       string
+}
+
+type Hostname string
+
+type Destinations map[Hostname]Destination
+
+func Build(config *Config) Destinations {
+	res := make(Destinations)
+	for _, host := range config.Local {
+		res[Hostname(host.Hostname)] = LocalDestination{
+			mu:       &sync.Mutex{},
+			Endpoint: host.Endpoint,
+			Region:   config.Region,
+		}
+	}
+	for _, host := range config.AWS {
+		res[Hostname(host.Hostname)] = LambdaDestination{
+			FunctionName: host.FunctionName,
+			Region:       config.Region,
+		}
+	}
+	return res
 }
 
 func (d LocalDestination) Invoke(payload []byte) (*lambda.InvokeOutput, error) {
@@ -116,34 +135,12 @@ func NewServer(config Config) http.Handler {
 			w.Write([]byte(""))
 		})
 
-	var mu sync.Mutex
-	mux.HandleFunc("/", Rie(&config, &mu))
+	mux.HandleFunc("/", Rie(Build(&config)))
 
 	return mux
 }
 
-func Route(config *Config, hostname string, mu *sync.Mutex) (Destination, error) {
-	for _, host := range config.Local {
-		if host.Hostname == hostname {
-			return LocalDestination{
-				mu:       mu,
-				Endpoint: host.Endpoint,
-				Region:   config.Region,
-			}, nil
-		}
-	}
-	for _, host := range config.AWS {
-		if host.Hostname == hostname {
-			return LambdaDestination{
-				FunctionName: host.FunctionName,
-				Region:       config.Region,
-			}, nil
-		}
-	}
-	return nil, fmt.Errorf("Cannot route hostname %s: %w", hostname, ErrRouteNotFound)
-}
-
-func Rie(config *Config, mu *sync.Mutex) func(w http.ResponseWriter, r *http.Request) {
+func Rie(destinations Destinations) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		event, err := ToEvent(r)
 		if err != nil {
@@ -161,16 +158,10 @@ func Rie(config *Config, mu *sync.Mutex) func(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		d, err := Route(config, event.RequestContext.DomainName, mu)
-		if err != nil {
-			if errors.Is(err, ErrRouteNotFound) {
-				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte(err.Error()))
-				return
-			}
-			// TODO: better error
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Unable to create an AWS SDK session"))
+		d, ok := destinations[Hostname(event.RequestContext.DomainName)]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(fmt.Sprintf("Cannot route hostname: %s", event.RequestContext.DomainName)))
 			return
 		}
 
