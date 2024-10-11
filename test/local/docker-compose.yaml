@@ -16,12 +16,6 @@ services:
     ports:
       - "41414:8080"
     entrypoint: /go/bin/lrp /etc/lrp.yaml
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/healthz"]
-      interval: 3s
-      timeout: 2s
-      retries: 3
-      start_period: 1s
     volumes:
       - ./lrp.yaml:/etc/lrp.yaml
     networks:
