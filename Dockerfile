@@ -1,11 +1,14 @@
-FROM golang:1.23-alpine AS builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.23 AS builder
 
-RUN apk update && apk add --no-cache git
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 COPY . .
-RUN go get
-RUN go build -o /go/bin/lrp
+RUN go get && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /go/bin/lrp
 
 FROM scratch
 COPY --from=builder /go/bin/lrp /go/bin/lrp
